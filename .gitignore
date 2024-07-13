@@ -1,0 +1,11 @@
+/target
+
+# Benchmark/test output files
+output.csv
+output.txt
+
+# Property-based testing regression data
+proptest-regressions/
+
+# Code coverage reports
+tarpaulin-report.html

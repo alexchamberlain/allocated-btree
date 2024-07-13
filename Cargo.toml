@@ -1,0 +1,27 @@
+[package]
+name = "allocated-btree"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "B-Tree data structures with explicit allocator control using the allocated pattern"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+allocated = { version = "0.1.1", path = "../allocated", default-features = false }
+allocator-api2 = "0.4.0"
+generic-array = "1.1.0"
+typenum = "1.17.0"
+
+[features]
+default = ["std"]
+std = ["allocated/std"]
+
+[dev-dependencies]
+itertools = "0.13.0"
+proptest = { version = "1.6.0", features = ["proptest-macro"] }
+rand = "0.8.5"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
