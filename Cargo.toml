@@ -1,9 +1,12 @@
 [package]
 name = "allocated-btree"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "B-Tree data structures with explicit allocator control using the allocated pattern"
+documentation = "https://docs.rs/allocated-btree"
+homepage = "https://github.com/alexchamberlain/allocated-btree"
+repository = "https://github.com/alexchamberlain/allocated-btree"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
