@@ -321,15 +321,16 @@ where
             return NodeEntry::Occupied(OccupiedNodeEntry::new(parents, self, i));
         }
 
-        parents.push((self, i));
         let child = self.children[i];
 
         match child {
             None => {
-                let parents = parents.into_iter().map(|(n, _)| n).collect();
-                NodeEntry::Vacant(VacantNodeEntry::new(key, parents, i))
+                // Child doesn't exist - create vacant entry at this node
+                NodeEntry::Vacant(VacantNodeEntry::new(key, parents, self, i))
             }
             Some(mut child) => {
+                // Child exists - descend into it
+                parents.push((self, i));
                 // SAFETY: child pointer is valid and uniquely owned.
                 let child_ref = unsafe { child.as_mut() };
                 // SAFETY: parents contains valid ancestors.
@@ -819,15 +820,18 @@ where
             return NodeEntry::Occupied(OccupiedNodeEntry::new(parents, self, i));
         }
 
-        parents.push((self.as_ptr(), i));
-        let child = self.into_child_at(i);
-
-        match child {
+        // Check if child exists before consuming self
+        match self.child_at(i) {
             None => {
-                let parents = parents.into_iter().map(|(p, _)| p).collect();
-                NodeEntry::Vacant(VacantNodeEntry::new(key, parents, i))
+                // Child doesn't exist - create vacant entry at this node
+                NodeEntry::Vacant(VacantNodeEntry::new(key, parents, self, i))
             }
-            Some(child) => child.ref_entry(key, parents),
+            Some(_) => {
+                // Child exists - descend into it
+                parents.push((self.as_ptr(), i));
+                let child = self.into_child_at(i).unwrap();
+                child.ref_entry(key, parents)
+            }
         }
     }
 }

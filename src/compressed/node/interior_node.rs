@@ -327,16 +327,23 @@ where
             ));
         }
 
-        parents.push((ChildPtr::from_interior_node(self.into()), i));
         let child = self.children[i];
 
         match child.as_option_mut_node_ref() {
             None => {
-                let parents = parents.into_iter().map(|(n, _)| n).collect();
-                NodeEntry::Vacant(VacantNodeEntry::new(key, parents, i))
+                // Child doesn't exist - create vacant entry at this interior node
+                NodeEntry::Vacant(VacantNodeEntry::new(
+                    key,
+                    parents,
+                    MutNodeRef::Interior(self),
+                    i,
+                ))
             }
             // SAFETY: Requires child is a valid node reference with correct lifetime and parents list
-            Some(child) => unsafe { child.entry_in(key, parents) },
+            Some(child) => {
+                parents.push((ChildPtr::from_interior_node(self.into()), i));
+                unsafe { child.entry_in(key, parents) }
+            }
         }
     }
 

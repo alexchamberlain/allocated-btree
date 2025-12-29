@@ -122,6 +122,68 @@ impl ChildPtr {
         }
     }
 
+    /// Converts this `ChildPtr` to a `NodeRef` with an explicitly specified lifetime.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure:
+    /// 1. The `ChildPtr` points to a valid node that has not been deallocated
+    /// 2. The node lives at least as long as the specified lifetime `'a`
+    /// 3. No mutable references to the same node exist during the lifetime `'a`
+    pub unsafe fn as_node_ref_with_lifetime<'a, K: core::cmp::PartialOrd + core::fmt::Debug, V, B: ArrayLength>(
+        &self,
+    ) -> NodeRef<'a, K, V, B>
+    where
+        U2: Mul<B>,
+        Prod<U2, B>: ArrayLength,
+        U1: Add<Prod<U2, B>>,
+        Sum<U1, Prod<U2, B>>: ArrayLength,
+    {
+        if (self.0 & 1) > 0 {
+            // Interior Node
+            let ptr = (self.0 & INTERIOR_MASK) as *const InteriorNode<K, V, B>;
+            // SAFETY: Caller ensures the pointer is valid for lifetime 'a
+            NodeRef::Interior(unsafe { &*ptr })
+        } else {
+            // Leaf Node
+            let ptr = self.0 as *const LeafNode<K, V, B>;
+            // SAFETY: Caller ensures the pointer is valid for lifetime 'a
+            NodeRef::Leaf(unsafe { &*ptr })
+        }
+    }
+
+    /// Gets a reference to a key at the specified index in the node this `ChildPtr` points to.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure:
+    /// 1. The `ChildPtr` points to a valid node that has not been deallocated
+    /// 2. The node lives at least as long as the specified lifetime `'a`
+    /// 3. The index `i` is valid for the node (i < n_keys)
+    /// 4. No mutable references to the same node exist during the lifetime `'a`
+    pub unsafe fn get_key_at<'a, K: core::cmp::PartialOrd + core::fmt::Debug + 'a, V: 'a, B: ArrayLength>(
+        &self,
+        i: usize,
+    ) -> &'a K
+    where
+        U2: Mul<B>,
+        Prod<U2, B>: ArrayLength,
+        U1: Add<Prod<U2, B>>,
+        Sum<U1, Prod<U2, B>>: ArrayLength,
+    {
+        if (self.0 & 1) > 0 {
+            // Interior Node
+            let ptr = (self.0 & INTERIOR_MASK) as *const InteriorNode<K, V, B>;
+            // SAFETY: Caller ensures pointer is valid for lifetime 'a and index is valid
+            unsafe { (&*ptr).key_at(i) }
+        } else {
+            // Leaf Node
+            let ptr = self.0 as *const LeafNode<K, V, B>;
+            // SAFETY: Caller ensures pointer is valid for lifetime 'a and index is valid
+            unsafe { (&*ptr).key_at(i) }
+        }
+    }
+
     pub fn from_node_ref<K: core::cmp::PartialOrd + core::fmt::Debug, V, B: ArrayLength>(
         node_ref: NodeRef<'_, K, V, B>,
     ) -> Self

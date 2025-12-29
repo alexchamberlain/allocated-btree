@@ -99,6 +99,22 @@ where
         self.inner.into_key()
     }
 
+    /// Returns a reference to the key that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    #[must_use]
+    pub fn key_below(&self) -> Option<&K> {
+        self.inner.key_below()
+    }
+
+    /// Returns a reference to the key that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    #[must_use]
+    pub fn key_above(&self) -> Option<&K> {
+        self.inner.key_above()
+    }
+
     /// Sets the value of the entry with the `VacantEntry`'s key, and returns `None`.
     ///
     /// # Errors

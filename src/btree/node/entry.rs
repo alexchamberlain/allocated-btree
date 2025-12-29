@@ -53,7 +53,13 @@ pub struct VacantNodeEntry<
     // K: Borrow<Q>,
 {
     key: Q,
-    nodes: Vec<NR::Ptr>,
+    /// Path from root to the node, stored as (ancestor_node, child_index) pairs.
+    /// The `usize` represents the child index at which we descended from that ancestor.
+    /// This is used to determine whether we came from the left or right subtree when
+    /// finding predecessor/successor keys.
+    ancestors: Vec<(NR::Ptr, usize)>,
+    /// The node where the vacant entry would be inserted. Can be either a leaf or interior node.
+    node: NR,
     i: usize,
     phantom: PhantomData<&'s Node<K, V, B>>,
 }
@@ -71,6 +77,9 @@ pub struct OccupiedNodeEntry<
     U1: Add<Prod<U2, B>>,
     Sum<U1, Prod<U2, B>>: ArrayLength,
 {
+    /// Path from root to the node containing the occupied entry, stored as (ancestor_node, child_index) pairs.
+    /// The `usize` represents the child index at which we descended from that ancestor.
+    /// This is used during removal to propagate underflow corrections up the tree.
     ancestors: Vec<(NR::Ptr, usize)>,
     node: NR,
     i: usize,
@@ -92,7 +101,7 @@ where
     Sum<U1, Prod<U2, B>>: ArrayLength,
     // K: Borrow<Q>,
 {
-    pub(super) fn new(key: Q, nodes: Vec<NR::Ptr>, i: usize) -> Self
+    pub(super) fn new(key: Q, ancestors: Vec<(NR::Ptr, usize)>, node: NR, i: usize) -> Self
     where
         Q: Debug,
     {
@@ -100,7 +109,8 @@ where
 
         Self {
             key,
-            nodes,
+            ancestors,
+            node,
             i,
             phantom: PhantomData,
         }
@@ -123,6 +133,64 @@ where
     U1: Add<Prod<U2, B>>,
     Sum<U1, Prod<U2, B>>: ArrayLength,
 {
+    /// Returns a reference to the key that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    pub fn key_below(&self) -> Option<&K>
+    where
+        K: core::cmp::PartialOrd,
+    {
+        // Check if we can get predecessor from current node
+        if self.i > 0 {
+            return Some(self.node.key_at(self.i - 1));
+        }
+
+        // Walk up ancestors to find predecessor
+        for (ancestor_ptr, ancestor_i) in self.ancestors.iter().rev().copied() {
+            if ancestor_i > 0 {
+                // We came from the right at this ancestor, so predecessor is at ancestor_i - 1
+                // SAFETY: The ancestor pointer was stored during tree traversal and points
+                // to a valid node in the tree with the same lifetime as self.
+                // The index ancestor_i - 1 is valid because ancestor_i > 0.
+                let ancestor = unsafe { <&Node<K, V, B>>::from_ptr(ancestor_ptr) };
+                return Some(ancestor.key_at(ancestor_i - 1));
+            }
+        }
+
+        // No predecessor found - this would be the minimum key
+        None
+    }
+
+    /// Returns a reference to the key that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    pub fn key_above(&self) -> Option<&K>
+    where
+        K: core::cmp::PartialOrd,
+    {
+        // Check if we can get successor from current node
+        let n_keys = self.node.n_keys();
+        if self.i < n_keys {
+            return Some(self.node.key_at(self.i));
+        }
+
+        // Walk up ancestors to find successor
+        for (ancestor_ptr, ancestor_i) in self.ancestors.iter().rev().copied() {
+            // SAFETY: The ancestor pointer was stored during tree traversal and points
+            // to a valid node in the tree with the same lifetime as self.
+            let ancestor = unsafe { <&Node<K, V, B>>::from_ptr(ancestor_ptr) };
+            let n_keys = ancestor.n_keys();
+            if ancestor_i < n_keys {
+                // We came from the left at this ancestor, so successor is at ancestor_i
+                // SAFETY: The index ancestor_i is valid because ancestor_i < n_keys.
+                return Some(ancestor.key_at(ancestor_i));
+            }
+        }
+
+        // No successor found - this would be the maximum key
+        None
+    }
+
     /// Inserts a value into the vacant entry.
     ///
     /// # Safety
@@ -131,28 +199,37 @@ where
     /// to construct the B-tree. Using a different allocator will result in
     /// undefined behavior.
     pub unsafe fn insert_in<'a, A: Allocator>(
-        mut self,
+        self,
         alloc: &'a A,
-        mut value: V,
+        value: V,
     ) -> AllocResult<InsertOption<'a, 's, K, V, B, A>> {
         let mut key = self.key;
-        let mut i = Some(self.i);
+        let mut value = value;
         let mut rhn = None;
-        while let Some(node) = self.nodes.pop() {
-            // SAFETY: The node pointer came from the entry path traversal and is valid
-            // for the lifetime 's. We have exclusive access through the entry.
-            let node = unsafe { &mut *node };
 
-            if i.is_none() {
-                let (j, match_) = node.find(&key);
-                assert!(!match_);
-                i = Some(j);
+        // First, try to insert into the node
+        // SAFETY: `alloc` is the same allocator used to create the B-tree (caller requirement).
+        let r = unsafe { self.node.insert_in_here(alloc, key, value, self.i, rhn)? };
+        match r {
+            InsertOption::NewKey(v) => {
+                return Ok(InsertOption::NewKey(v));
             }
+            InsertOption::Split((k, v, new_rhn)) => {
+                key = k;
+                value = v;
+                rhn = Some(new_rhn);
+            }
+        }
 
+        // If we split, propagate up through ancestors
+        for (ancestor_ptr, i) in self.ancestors.into_iter().rev() {
+            // SAFETY: The ancestor pointer was stored during tree traversal and is valid
+            // for the lifetime 's. We have exclusive access through the entry.
+            let node = unsafe { &mut *ancestor_ptr };
+            // Use `i` directly - the child index we descended through equals
+            // the key index where the median should be inserted
             // SAFETY: `alloc` is the same allocator used to create the B-tree (caller requirement).
-            // The index `i` is valid from the find operation above.
-            let r = unsafe { node.insert_in_here(alloc, key, value, i.unwrap(), rhn)? };
-
+            let r = unsafe { node.insert_in_here(alloc, key, value, i, rhn)? };
             match r {
                 InsertOption::NewKey(v) => {
                     return Ok(InsertOption::NewKey(v));
@@ -161,7 +238,6 @@ where
                     key = k;
                     value = v;
                     rhn = Some(new_rhn);
-                    i = None;
                 }
             }
         }

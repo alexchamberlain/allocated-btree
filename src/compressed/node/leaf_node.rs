@@ -276,19 +276,19 @@ where
     pub unsafe fn entry_in(
         &mut self,
         key: K,
-        mut parents: Vec<(ChildPtr, usize)>,
+        ancestors: Vec<(ChildPtr, usize)>,
     ) -> NodeEntry<'_, K, K, V, B, MutNodeRef<'_, K, V, B>> {
         let (i, match_) = self.find(&key);
 
         if match_ {
-            return NodeEntry::Occupied(OccupiedNodeEntry::new(parents, MutNodeRef::Leaf(self), i));
+            return NodeEntry::Occupied(OccupiedNodeEntry::new(ancestors, MutNodeRef::Leaf(self), i));
         }
 
-        parents.push((ChildPtr::from_leaf_node(self.into()), i));
-
-        let parents = parents.into_iter().map(|(n, _)| n).collect();
         NodeEntry::Vacant(VacantNodeEntry::<K, K, V, B, MutNodeRef<K, V, B>>::new(
-            key, parents, i,
+            key,
+            ancestors,
+            MutNodeRef::Leaf(self),
+            i,
         ))
     }
 

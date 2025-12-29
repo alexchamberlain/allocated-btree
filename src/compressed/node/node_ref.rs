@@ -273,15 +273,18 @@ where
             return NodeEntry::Occupied(OccupiedNodeEntry::new(parents, self, i));
         }
 
-        parents.push((self.as_ptr(), i));
-        let child = self.into_child_at(i);
-
-        match child {
+        // Check if child exists before consuming self
+        match self.child_at(i) {
             None => {
-                let parents = parents.into_iter().map(|(p, _)| p).collect();
-                NodeEntry::Vacant(VacantNodeEntry::<K, &Q, V, B, Self>::new(key, parents, i))
+                // Child doesn't exist - create vacant entry at this node
+                NodeEntry::Vacant(VacantNodeEntry::<K, &Q, V, B, Self>::new(key, parents, self, i))
             }
-            Some(child) => child.ref_entry(key, parents),
+            Some(_) => {
+                // Child exists - descend into it
+                parents.push((self.as_ptr(), i));
+                let child = self.into_child_at(i).unwrap();
+                child.ref_entry(key, parents)
+            }
         }
     }
 }

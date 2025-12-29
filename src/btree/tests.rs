@@ -2438,6 +2438,66 @@ proptest! {
     }
 }
 
+#[test]
+fn test_vacant_entry_key_below_key_above() -> Result<(), Box<dyn Error>> {
+    let alloc = CountingAllocator::default();
+    let mut btree = wrapper::NaiveBTreeMap::<_, _, U6, _>::new_in(&alloc)?;
+
+    // Insert keys: 1, 3, 5, 7, 9
+    btree.insert(5, "five")?;
+    btree.insert(3, "three")?;
+    btree.insert(7, "seven")?;
+    btree.insert(1, "one")?;
+    btree.insert(9, "nine")?;
+
+    // Test key 4 (between 3 and 5)
+    let entry = btree.entry(4);
+    if let Entry::Vacant(v) = entry {
+        assert_eq!(v.key_below(), Some(&3));
+        assert_eq!(v.key_above(), Some(&5));
+    } else {
+        panic!("Expected vacant entry for key 4");
+    }
+
+    // Test key 0 (before minimum)
+    let entry = btree.entry(0);
+    if let Entry::Vacant(v) = entry {
+        assert_eq!(v.key_below(), None);
+        assert_eq!(v.key_above(), Some(&1));
+    } else {
+        panic!("Expected vacant entry for key 0");
+    }
+
+    // Test key 10 (after maximum)
+    let entry = btree.entry(10);
+    if let Entry::Vacant(v) = entry {
+        assert_eq!(v.key_below(), Some(&9));
+        assert_eq!(v.key_above(), None);
+    } else {
+        panic!("Expected vacant entry for key 10");
+    }
+
+    // Test key 2 (between 1 and 3)
+    let entry = btree.entry(2);
+    if let Entry::Vacant(v) = entry {
+        assert_eq!(v.key_below(), Some(&1));
+        assert_eq!(v.key_above(), Some(&3));
+    } else {
+        panic!("Expected vacant entry for key 2");
+    }
+
+    // Test key 8 (between 7 and 9)
+    let entry = btree.entry(8);
+    if let Entry::Vacant(v) = entry {
+        assert_eq!(v.key_below(), Some(&7));
+        assert_eq!(v.key_above(), Some(&9));
+    } else {
+        panic!("Expected vacant entry for key 8");
+    }
+
+    Ok(())
+}
+
 fn _assert_allocations<A: Allocator, B: ArrayLength>(alloc: CountingAllocator<A>, n_nodes: usize)
 where
     U2: Mul<B>,
