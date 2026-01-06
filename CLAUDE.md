@@ -150,6 +150,10 @@ The codebase uses multiple testing approaches:
 
 When adding features, follow the existing test pattern: write explicit tests for edge cases, then add property-based tests for randomized validation.
 
+## Workflow
+
+**Commit after each iteration**: After completing each task or feature addition, create a git commit to preserve progress. This makes it easier to review changes and roll back if needed.
+
 ### Bug History
 
 **Compressed B-Tree - Fixed Bugs**:

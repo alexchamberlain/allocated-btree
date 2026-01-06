@@ -133,16 +133,12 @@ where
     U1: Add<Prod<U2, B>>,
     Sum<U1, Prod<U2, B>>: ArrayLength,
 {
-    /// Returns a reference to the key that would be immediately below (predecessor of)
-    /// the vacant entry's key in the tree's sorted order.
-    /// Returns `None` if the vacant entry would be the minimum key.
-    pub fn key_below(&self) -> Option<&K>
-    where
-        K: core::cmp::PartialOrd,
-    {
-        // Check if we can get predecessor from current node
+    /// Returns a reference to the node and index of the entry immediately below (predecessor of)
+    /// this vacant entry. Returns `None` if the vacant entry would be the minimum key.
+    fn index_below(&self) -> Option<(&Node<K, V, B>, usize)> {
+        // Check if predecessor is in current node
         if self.i > 0 {
-            return Some(self.node.key_at(self.i - 1));
+            return Some((&*self.node, self.i - 1));
         }
 
         // Walk up ancestors to find predecessor
@@ -151,9 +147,8 @@ where
                 // We came from the right at this ancestor, so predecessor is at ancestor_i - 1
                 // SAFETY: The ancestor pointer was stored during tree traversal and points
                 // to a valid node in the tree with the same lifetime as self.
-                // The index ancestor_i - 1 is valid because ancestor_i > 0.
-                let ancestor = unsafe { <&Node<K, V, B>>::from_ptr(ancestor_ptr) };
-                return Some(ancestor.key_at(ancestor_i - 1));
+                let ancestor = unsafe { &*ancestor_ptr };
+                return Some((ancestor, ancestor_i - 1));
             }
         }
 
@@ -161,34 +156,79 @@ where
         None
     }
 
-    /// Returns a reference to the key that would be immediately above (successor of)
-    /// the vacant entry's key in the tree's sorted order.
-    /// Returns `None` if the vacant entry would be the maximum key.
-    pub fn key_above(&self) -> Option<&K>
-    where
-        K: core::cmp::PartialOrd,
-    {
-        // Check if we can get successor from current node
-        let n_keys = self.node.n_keys();
-        if self.i < n_keys {
-            return Some(self.node.key_at(self.i));
+    /// Returns a reference to the node and index of the entry immediately above (successor of)
+    /// this vacant entry. Returns `None` if the vacant entry would be the maximum key.
+    fn index_above(&self) -> Option<(&Node<K, V, B>, usize)> {
+        // Check if successor is in current node
+        if self.i < self.node.n_keys() {
+            return Some((&*self.node, self.i));
         }
 
         // Walk up ancestors to find successor
         for (ancestor_ptr, ancestor_i) in self.ancestors.iter().rev().copied() {
             // SAFETY: The ancestor pointer was stored during tree traversal and points
             // to a valid node in the tree with the same lifetime as self.
-            let ancestor = unsafe { <&Node<K, V, B>>::from_ptr(ancestor_ptr) };
-            let n_keys = ancestor.n_keys();
-            if ancestor_i < n_keys {
+            let ancestor = unsafe { &*ancestor_ptr };
+            if ancestor_i < ancestor.n_keys() {
                 // We came from the left at this ancestor, so successor is at ancestor_i
-                // SAFETY: The index ancestor_i is valid because ancestor_i < n_keys.
-                return Some(ancestor.key_at(ancestor_i));
+                return Some((ancestor, ancestor_i));
             }
         }
 
         // No successor found - this would be the maximum key
         None
+    }
+
+    /// Returns a reference to the key that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    pub fn key_below(&self) -> Option<&K> {
+        let (node, i) = self.index_below()?;
+        Some(node.key_at(i))
+    }
+
+    /// Returns a reference to the key that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    pub fn key_above(&self) -> Option<&K> {
+        let (node, i) = self.index_above()?;
+        Some(node.key_at(i))
+    }
+
+    /// Returns a reference to the value that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    #[must_use]
+    pub fn value_below(&self) -> Option<&V> {
+        let (node, i) = self.index_below()?;
+        Some(node.value_at(i))
+    }
+
+    /// Returns a reference to the value that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    #[must_use]
+    pub fn value_above(&self) -> Option<&V> {
+        let (node, i) = self.index_above()?;
+        Some(node.value_at(i))
+    }
+
+    /// Returns a reference to the key-value pair that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    #[must_use]
+    pub fn below(&self) -> Option<(&K, &V)> {
+        let (node, i) = self.index_below()?;
+        Some((node.key_at(i), node.value_at(i)))
+    }
+
+    /// Returns a reference to the key-value pair that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    #[must_use]
+    pub fn above(&self) -> Option<(&K, &V)> {
+        let (node, i) = self.index_above()?;
+        Some((node.key_at(i), node.value_at(i)))
     }
 
     /// Inserts a value into the vacant entry.
@@ -297,6 +337,68 @@ where
     U1: Add<Prod<U2, B>>,
     Sum<U1, Prod<U2, B>>: ArrayLength,
 {
+    /// Returns a reference to the node and index of the entry immediately below (predecessor of)
+    /// this occupied entry. Returns `None` if this entry is the minimum key.
+    fn index_below(&self) -> Option<(&Node<K, V, B>, usize)> {
+        // Check if predecessor is in current node
+        if self.i > 0 {
+            return Some((&*self.node, self.i - 1));
+        }
+
+        // Walk up ancestors to find predecessor
+        for (ancestor_ptr, ancestor_i) in self.ancestors.iter().rev().copied() {
+            if ancestor_i > 0 {
+                // We came from the right at this ancestor, so predecessor is at ancestor_i - 1
+                // SAFETY: The ancestor pointer was stored during tree traversal and points
+                // to a valid node in the tree with the same lifetime as self.
+                let ancestor = unsafe { &*ancestor_ptr };
+                return Some((ancestor, ancestor_i - 1));
+            }
+        }
+
+        // No predecessor found - this is the minimum key
+        None
+    }
+
+    /// Returns a reference to the node and index of the entry immediately above (successor of)
+    /// this occupied entry. Returns `None` if this entry is the maximum key.
+    fn index_above(&self) -> Option<(&Node<K, V, B>, usize)> {
+        // Check if successor is in current node
+        if self.i + 1 < self.node.n_keys() {
+            return Some((&*self.node, self.i + 1));
+        }
+
+        // Walk up ancestors to find successor
+        for (ancestor_ptr, ancestor_i) in self.ancestors.iter().rev().copied() {
+            // SAFETY: The ancestor pointer was stored during tree traversal and points
+            // to a valid node in the tree with the same lifetime as self.
+            let ancestor = unsafe { &*ancestor_ptr };
+            if ancestor_i < ancestor.n_keys() {
+                // We came from the left at this ancestor, so successor is at ancestor_i
+                return Some((ancestor, ancestor_i));
+            }
+        }
+
+        // No successor found - this is the maximum key
+        None
+    }
+
+    /// Returns a reference to the key that is immediately below (predecessor of)
+    /// this occupied entry's key in the tree's sorted order.
+    /// Returns `None` if this entry is the minimum key.
+    pub fn key_below(&self) -> Option<&K> {
+        let (node, i) = self.index_below()?;
+        Some(node.key_at(i))
+    }
+
+    /// Returns a reference to the key that is immediately above (successor of)
+    /// this occupied entry's key in the tree's sorted order.
+    /// Returns `None` if this entry is the maximum key.
+    pub fn key_above(&self) -> Option<&K> {
+        let (node, i) = self.index_above()?;
+        Some(node.key_at(i))
+    }
+
     pub fn get_mut(&mut self) -> &mut V {
         self.node.value_at_mut(self.i)
     }

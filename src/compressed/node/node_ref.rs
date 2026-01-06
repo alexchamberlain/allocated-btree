@@ -238,6 +238,10 @@ where
     fn value_at(&self, i: usize) -> &V;
     fn child_at(&self, i: usize) -> Option<NodeRef<'_, K, V, B>>;
 
+    /// Returns an immutable `NodeRef` by reborrowing self.
+    fn as_node_ref(&self) -> NodeRef<'_, K, V, B>;
+
+    fn into_key_at(self, i: usize) -> &'n K;
     fn into_value_at(self, i: usize) -> &'n V;
     fn into_key_value_at(self, i: usize) -> (&'n K, Self::ValueRef);
     fn into_child_at(self, i: usize) -> Option<Self>;
@@ -329,6 +333,13 @@ where
         ChildPtr::from_node_ref(self.clone())
     }
 
+    fn into_key_at(self, i: usize) -> &'n K {
+        match self {
+            NodeRef::Interior(node) => node.key_at(i),
+            NodeRef::Leaf(node) => node.key_at(i),
+        }
+    }
+
     fn into_value_at(self, i: usize) -> &'n V {
         match self {
             NodeRef::Interior(node) => node.value_at(i),
@@ -395,6 +406,13 @@ where
         }
     }
 
+    fn as_node_ref(&self) -> NodeRef<'_, K, V, B> {
+        match self {
+            NodeRef::Interior(n) => NodeRef::Interior(n),
+            NodeRef::Leaf(n) => NodeRef::Leaf(n),
+        }
+    }
+
     fn as_type(&self) -> NodeRefType {
         match self {
             NodeRef::Interior(_) => NodeRefType::Interior,
@@ -422,6 +440,13 @@ where
 
     fn as_ptr(&mut self) -> ChildPtr {
         ChildPtr::from_mut_node_ref(self)
+    }
+
+    fn into_key_at(self, i: usize) -> &'n K {
+        match self {
+            MutNodeRef::Interior(node) => node.key_at(i),
+            MutNodeRef::Leaf(node) => node.key_at(i),
+        }
     }
 
     fn into_value_at(self, i: usize) -> &'n V {
@@ -486,6 +511,13 @@ where
         match self {
             MutNodeRef::Interior(n) => n.child_at(i),
             MutNodeRef::Leaf(_) => None,
+        }
+    }
+
+    fn as_node_ref(&self) -> NodeRef<'_, K, V, B> {
+        match self {
+            MutNodeRef::Interior(n) => NodeRef::Interior(n),
+            MutNodeRef::Leaf(n) => NodeRef::Leaf(n),
         }
     }
 

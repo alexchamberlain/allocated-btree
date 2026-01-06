@@ -115,6 +115,38 @@ where
         self.inner.key_above()
     }
 
+    /// Returns a reference to the value that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    #[must_use]
+    pub fn value_below(&self) -> Option<&V> {
+        self.inner.value_below()
+    }
+
+    /// Returns a reference to the value that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    #[must_use]
+    pub fn value_above(&self) -> Option<&V> {
+        self.inner.value_above()
+    }
+
+    /// Returns a reference to the key-value pair that would be immediately below (predecessor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the minimum key.
+    #[must_use]
+    pub fn below(&self) -> Option<(&K, &V)> {
+        self.inner.below()
+    }
+
+    /// Returns a reference to the key-value pair that would be immediately above (successor of)
+    /// the vacant entry's key in the tree's sorted order.
+    /// Returns `None` if the vacant entry would be the maximum key.
+    #[must_use]
+    pub fn above(&self) -> Option<(&K, &V)> {
+        self.inner.above()
+    }
+
     /// Sets the value of the entry with the `VacantEntry`'s key, and returns `None`.
     ///
     /// # Errors
@@ -170,6 +202,22 @@ where
     #[must_use]
     pub fn key(&self) -> &K {
         self.inner.key()
+    }
+
+    /// Returns a reference to the key that is immediately below (predecessor of)
+    /// this occupied entry's key in the tree's sorted order.
+    /// Returns `None` if this entry is the minimum key.
+    #[must_use]
+    pub fn key_below(&self) -> Option<&K> {
+        self.inner.key_below()
+    }
+
+    /// Returns a reference to the key that is immediately above (successor of)
+    /// this occupied entry's key in the tree's sorted order.
+    /// Returns `None` if this entry is the maximum key.
+    #[must_use]
+    pub fn key_above(&self) -> Option<&K> {
+        self.inner.key_above()
     }
 
     /// Gets a reference to the value in the entry.
