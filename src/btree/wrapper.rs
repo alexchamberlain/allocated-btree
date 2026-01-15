@@ -418,3 +418,42 @@ impl<K: PartialOrd + Debug, V> FromIterator<(K, V)> for NaiveBTreeMap<K, V> {
         Self { alloc, raw }
     }
 }
+
+impl<K: PartialOrd + Debug, V, B: ArrayLength, A: Allocator> Extend<(K, V)>
+    for NaiveBTreeMap<K, V, B, A>
+where
+    U2: Mul<B>,
+    Prod<U2, B>: ArrayLength,
+    U1: Add<Prod<U2, B>>,
+    Sum<U1, Prod<U2, B>>: ArrayLength,
+{
+    /// Extends the map with the contents of an iterator.
+    ///
+    /// If the iterator yields duplicate keys, the last value wins.
+    ///
+    /// # Panics
+    ///
+    /// Panics if allocation fails during insertion.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::NaiveBTreeMap;
+    ///
+    /// let mut map = NaiveBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    ///
+    /// let more_items = vec![(2, "b"), (3, "c")];
+    /// map.extend(more_items);
+    ///
+    /// assert_eq!(map.len(), 3);
+    /// assert_eq!(map.get(&2), Some(&"b"));
+    /// ```
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        use allocated::AllocResultExt;
+
+        for (k, v) in iter {
+            let _ = self.insert(k, v).handle_alloc_error();
+        }
+    }
+}
