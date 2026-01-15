@@ -332,6 +332,25 @@ where
         Some(inner_entry.into_key_value())
     }
 
+    /// # Safety
+    ///
+    /// `alloc` MUST be the allocator used to allocate this object.
+    pub unsafe fn last_entry_in<'a, 's, A: Allocator>(
+        &'s mut self,
+        alloc: &'a A,
+    ) -> Option<OccupiedEntry<'a, 's, A, K, V, B>> {
+        if self.n == 0 {
+            return None;
+        }
+
+        let map = NonNull::new(self)?;
+        let root: &mut Node<K, V, B> = self.root.as_mut().unwrap();
+        let inner_entry: OccupiedNodeEntry<'s, K, V, B, &mut Node<K, V, B>> =
+            root.last_entry(vec![]);
+        // SAFETY: Requirements match function requirements
+        unsafe { Some(OccupiedEntry::new(alloc, inner_entry, map)) }
+    }
+
     /// Gets the given key's corresponding occupied entry in the map for in-place manipulation.
     ///
     /// Returns `None` if the key is not present in the map.

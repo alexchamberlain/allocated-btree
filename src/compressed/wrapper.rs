@@ -267,6 +267,46 @@ where
         self.raw.last()
     }
 
+    /// Removes and returns the first key-value pair in the map.
+    /// The key in this pair is the minimum key that was in the map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    /// map.insert(2, "b").unwrap();
+    ///
+    /// assert_eq!(map.pop_first(), Some((1, "a")));
+    /// assert_eq!(map.pop_first(), Some((2, "b")));
+    /// assert_eq!(map.pop_first(), None);
+    /// ```
+    pub fn pop_first(&mut self) -> Option<(K, V)> {
+        self.first_entry().map(|entry| entry.remove_entry())
+    }
+
+    /// Removes and returns the last key-value pair in the map.
+    /// The key in this pair is the maximum key that was in the map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    /// map.insert(2, "b").unwrap();
+    ///
+    /// assert_eq!(map.pop_last(), Some((2, "b")));
+    /// assert_eq!(map.pop_last(), Some((1, "a")));
+    /// assert_eq!(map.pop_last(), None);
+    /// ```
+    pub fn pop_last(&mut self) -> Option<(K, V)> {
+        self.last_entry().map(|entry| entry.remove_entry())
+    }
+
     /// Removes a key from the map, returning the value at the key if the key
     /// was previously in the map.
     ///

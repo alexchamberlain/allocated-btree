@@ -236,9 +236,55 @@ where
         unsafe { self.raw.first_entry_in(&self.alloc) }
     }
 
+    /// Gets the last entry in the map for in-place manipulation.
+    pub fn last_entry(&mut self) -> Option<OccupiedEntry<'_, '_, A, K, V, B>> {
+        // SAFETY: `self.alloc` was used to allocate `self.raw`
+        unsafe { self.raw.last_entry_in(&self.alloc) }
+    }
+
     /// Returns the first key-value pair in the map.
     pub fn first_key_value(&self) -> Option<(&K, &V)> {
         self.raw.first_key_value()
+    }
+
+    /// Removes and returns the first key-value pair in the map.
+    /// The key in this pair is the minimum key that was in the map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::NaiveBTreeMap;
+    ///
+    /// let mut map = NaiveBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    /// map.insert(2, "b").unwrap();
+    ///
+    /// assert_eq!(map.pop_first(), Some((1, "a")));
+    /// assert_eq!(map.pop_first(), Some((2, "b")));
+    /// assert_eq!(map.pop_first(), None);
+    /// ```
+    pub fn pop_first(&mut self) -> Option<(K, V)> {
+        self.first_entry().map(|entry| entry.remove_entry())
+    }
+
+    /// Removes and returns the last key-value pair in the map.
+    /// The key in this pair is the maximum key that was in the map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::NaiveBTreeMap;
+    ///
+    /// let mut map = NaiveBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    /// map.insert(2, "b").unwrap();
+    ///
+    /// assert_eq!(map.pop_last(), Some((2, "b")));
+    /// assert_eq!(map.pop_last(), Some((1, "a")));
+    /// assert_eq!(map.pop_last(), None);
+    /// ```
+    pub fn pop_last(&mut self) -> Option<(K, V)> {
+        self.last_entry().map(|entry| entry.remove_entry())
     }
 
     /// Removes a key from the map, returning the value at the key if the key

@@ -805,6 +805,23 @@ where
         }
     }
 
+    fn last_entry(
+        mut self,
+        mut parents: Vec<(Self::Ptr, usize)>,
+    ) -> OccupiedNodeEntry<'n, K, V, B, Self>
+    where
+        Self: Sized,
+    {
+        if self.is_leaf() {
+            let last_idx = self.n_keys() - 1;
+            OccupiedNodeEntry::new(parents, self, last_idx)
+        } else {
+            let last_idx = self.n_keys();
+            parents.push((self.as_ptr(), last_idx));
+            self.into_child_at(last_idx).unwrap().last_entry(parents)
+        }
+    }
+
     fn ref_entry<'s, Q>(
         mut self,
         key: &'s Q,
