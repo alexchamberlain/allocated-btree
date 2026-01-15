@@ -189,6 +189,52 @@ where
         unsafe { self.raw.entry_in(&self.alloc, key) }
     }
 
+    /// Gets the given key's corresponding occupied entry in the map for in-place manipulation.
+    ///
+    /// Returns `None` if the key is not present in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but the ordering
+    /// on the borrowed form *must* match the ordering on the key type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    ///
+    /// // Get the entry if it exists and modify it
+    /// if let Some(mut entry) = map.entry_ref(&1) {
+    ///     *entry.get_mut() = "b";
+    /// }
+    /// assert_eq!(map.get(&1), Some(&"b"));
+    ///
+    /// // Non-existent key returns None
+    /// assert!(map.entry_ref(&2).is_none());
+    /// ```
+    ///
+    /// Using `String` keys with `&str` lookups:
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert("hello".to_string(), 42).unwrap();
+    ///
+    /// if let Some(entry) = map.entry_ref("hello") {
+    ///     assert_eq!(entry.key(), &"hello".to_string());
+    /// }
+    /// ```
+    pub fn entry_ref<Q>(&mut self, key: &Q) -> Option<OccupiedEntry<'_, '_, A, K, V, B>>
+    where
+        K: Borrow<Q>,
+        Q: PartialOrd + core::fmt::Debug + ?Sized,
+    {
+        // SAFETY: self.alloc was used to allocate self.raw
+        unsafe { self.raw.entry_ref_in(&self.alloc, key) }
+    }
+
     /// Gets the first entry in the map for in-place manipulation.
     pub fn first_entry(&mut self) -> Option<OccupiedEntry<'_, '_, A, K, V, B>> {
         // SAFETY: `self.alloc` was used to allocate `self.raw`
@@ -219,6 +265,67 @@ where
     /// Returns the last key in the map.
     pub fn last(&self) -> Option<&K> {
         self.raw.last()
+    }
+
+    /// Removes a key from the map, returning the value at the key if the key
+    /// was previously in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but the ordering
+    /// on the borrowed form *must* match the ordering on the key type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    /// assert_eq!(map.remove(&1), Some("a"));
+    /// assert_eq!(map.remove(&1), None);
+    /// ```
+    ///
+    /// Using `String` keys with `&str` lookups:
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert("hello".to_string(), 42).unwrap();
+    /// assert_eq!(map.remove("hello"), Some(42));  // Note: &str, not &String
+    /// assert_eq!(map.remove("hello"), None);
+    /// ```
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: PartialOrd + core::fmt::Debug + ?Sized,
+    {
+        // SAFETY: self.alloc was used to allocate self.raw
+        unsafe { self.raw.remove_in(&self.alloc, key) }
+    }
+
+    /// Removes a key from the map, returning the stored key and value if the key
+    /// was previously in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but the ordering
+    /// on the borrowed form *must* match the ordering on the key type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::CompressedBTreeMap;
+    ///
+    /// let mut map = CompressedBTreeMap::new();
+    /// map.insert(1, "a").unwrap();
+    /// assert_eq!(map.remove_entry(&1), Some((1, "a")));
+    /// assert_eq!(map.remove_entry(&1), None);
+    /// ```
+    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where
+        K: Borrow<Q>,
+        Q: PartialOrd + core::fmt::Debug + ?Sized,
+    {
+        // SAFETY: self.alloc was used to allocate self.raw
+        unsafe { self.raw.remove_entry_in(&self.alloc, key) }
     }
 
     /// Gets an iterator over the entries of the map, sorted by key.

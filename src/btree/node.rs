@@ -812,7 +812,7 @@ where
     ) -> NodeEntry<'n, K, &'s Q, V, B, Self>
     where
         K: Borrow<Q> + core::cmp::PartialOrd,
-        Q: core::cmp::PartialOrd + Debug,
+        Q: core::cmp::PartialOrd + Debug + ?Sized,
     {
         let (i, match_) = self.find(key);
 

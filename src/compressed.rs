@@ -376,6 +376,134 @@ where
     pub fn last(&self) -> Option<&K> {
         self.last_key_value().map(|(k, _)| k)
     }
+
+    /// Gets the given key's corresponding occupied entry in the map for in-place manipulation.
+    ///
+    /// Returns `None` if the key is not present in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but the ordering
+    /// on the borrowed form *must* match the ordering on the key type.
+    ///
+    /// # Safety
+    ///
+    /// `alloc` MUST be the allocator used to allocate this object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::AllocatedCompressedBTreeMap;
+    /// use allocated::CountingAllocator;
+    ///
+    /// let alloc = CountingAllocator::default();
+    /// let mut map = AllocatedCompressedBTreeMap::<u32, String>::new_in(&alloc)?;
+    ///
+    /// unsafe {
+    ///     map.insert_in(&alloc, 1, "a".to_string())?;
+    ///
+    ///     // Get the entry if it exists
+    ///     if let Some(entry) = map.entry_ref_in(&alloc, &1) {
+    ///         assert_eq!(entry.key(), &1);
+    ///     }
+    ///
+    ///     // Non-existent key returns None
+    ///     assert!(map.entry_ref_in(&alloc, &2).is_none());
+    /// }
+    /// # Ok::<(), allocated::AllocErrorWithLayout>(())
+    /// ```
+    pub unsafe fn entry_ref_in<'a, 's, A: Allocator, Q>(
+        &'s mut self,
+        alloc: &'a A,
+        key: &Q,
+    ) -> Option<OccupiedEntry<'a, 's, A, K, V, B>>
+    where
+        K: Borrow<Q>,
+        Q: PartialOrd + core::fmt::Debug + ?Sized,
+    {
+        let map = NonNull::from_mut(self);
+        let root = self.root_mut_node_ref();
+
+        match root.ref_entry(key, vec![]) {
+            NodeEntry::Vacant(_) => None,
+            NodeEntry::Occupied(inner) => {
+                // SAFETY: Caller guarantees `alloc` is the allocator used for this tree
+                Some(unsafe { OccupiedEntry::new(alloc, inner, map) })
+            }
+        }
+    }
+
+    /// Removes a key from the map, returning the value at the key if the key
+    /// was previously in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but the ordering
+    /// on the borrowed form *must* match the ordering on the key type.
+    ///
+    /// # Safety
+    ///
+    /// `alloc` MUST be the allocator used to allocate this object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::AllocatedCompressedBTreeMap;
+    /// use allocated::CountingAllocator;
+    ///
+    /// let alloc = CountingAllocator::default();
+    /// let mut map = AllocatedCompressedBTreeMap::<u32, String>::new_in(&alloc)?;
+    ///
+    /// unsafe {
+    ///     map.insert_in(&alloc, 1, "a".to_string())?;
+    ///     assert_eq!(map.remove_in(&alloc, &1), Some("a".to_string()));
+    ///     assert_eq!(map.remove_in(&alloc, &1), None);
+    /// }
+    /// # Ok::<(), allocated::AllocErrorWithLayout>(())
+    /// ```
+    pub unsafe fn remove_in<A: Allocator, Q>(&mut self, alloc: &A, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: PartialOrd + core::fmt::Debug + ?Sized,
+    {
+        // SAFETY: Caller guarantees `alloc` is the allocator used for this tree
+        unsafe { self.remove_entry_in(alloc, key).map(|(_, v)| v) }
+    }
+
+    /// Removes a key from the map, returning the stored key and value if the key
+    /// was previously in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but the ordering
+    /// on the borrowed form *must* match the ordering on the key type.
+    ///
+    /// # Safety
+    ///
+    /// `alloc` MUST be the allocator used to allocate this object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::AllocatedCompressedBTreeMap;
+    /// use allocated::CountingAllocator;
+    ///
+    /// let alloc = CountingAllocator::default();
+    /// let mut map = AllocatedCompressedBTreeMap::<u32, String>::new_in(&alloc)?;
+    ///
+    /// unsafe {
+    ///     map.insert_in(&alloc, 1, "a".to_string())?;
+    ///     assert_eq!(map.remove_entry_in(&alloc, &1), Some((1, "a".to_string())));
+    ///     assert_eq!(map.remove_entry_in(&alloc, &1), None);
+    /// }
+    /// # Ok::<(), allocated::AllocErrorWithLayout>(())
+    /// ```
+    pub unsafe fn remove_entry_in<A: Allocator, Q>(
+        &mut self,
+        alloc: &A,
+        key: &Q,
+    ) -> Option<(K, V)>
+    where
+        K: Borrow<Q>,
+        Q: PartialOrd + core::fmt::Debug + ?Sized,
+    {
+        // SAFETY: Caller guarantees `alloc` is the allocator used for this tree
+        unsafe { self.entry_ref_in(alloc, key).map(|entry| entry.remove_entry()) }
+    }
 }
 
 // impl<K: core::cmp::PartialOrd + Debug, V: Debug, B: ArrayLength> AllocatedBTreeMap<K, V, B>
