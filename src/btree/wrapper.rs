@@ -384,3 +384,37 @@ where
         self.iter()
     }
 }
+
+impl<K: PartialOrd + Debug, V> FromIterator<(K, V)> for NaiveBTreeMap<K, V> {
+    /// Creates a B-tree map from an iterator of key-value pairs.
+    ///
+    /// If the iterator yields multiple values for the same key, the last value wins.
+    ///
+    /// # Panics
+    ///
+    /// Panics if allocation fails during construction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use allocated_btree::NaiveBTreeMap;
+    ///
+    /// let items = vec![(1, "a"), (2, "b"), (3, "c")];
+    /// let map: NaiveBTreeMap<_, _> = items.into_iter().collect();
+    ///
+    /// assert_eq!(map.get(&1), Some(&"a"));
+    /// assert_eq!(map.get(&2), Some(&"b"));
+    /// assert_eq!(map.get(&3), Some(&"c"));
+    /// assert_eq!(map.len(), 3);
+    /// ```
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        use allocated::{AllocResultExt, FromIteratorIn};
+        use allocator_api2::alloc::Global;
+
+        let alloc = Global;
+        let raw = AllocatedBTreeMap::from_iter_in(&alloc, iter)
+            .handle_alloc_error()
+            .into_inner();
+        Self { alloc, raw }
+    }
+}
