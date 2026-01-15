@@ -2654,3 +2654,97 @@ where
     //     n_nodes * size_of::<Node<u32, u32, B>>()
     // );
 }
+
+#[test]
+fn test_first_and_last() -> Result<(), Box<dyn Error>> {
+    let alloc = CountingAllocator::default();
+    let mut btree = AllocatedBTreeMap::<u32, String>::new_in(&alloc)?;
+
+    unsafe {
+        // Empty tree
+        assert_eq!(btree.first(), None);
+        assert_eq!(btree.last(), None);
+        assert_eq!(btree.first_key_value(), None);
+        assert_eq!(btree.last_key_value(), None);
+
+        // Single element
+        btree.insert_in(&alloc, 5, "five".to_string())?;
+        assert_eq!(btree.first(), Some(&5));
+        assert_eq!(btree.last(), Some(&5));
+        assert_eq!(btree.first_key_value(), Some((&5, &"five".to_string())));
+        assert_eq!(btree.last_key_value(), Some((&5, &"five".to_string())));
+
+        // Multiple elements
+        btree.insert_in(&alloc, 1, "one".to_string())?;
+        btree.insert_in(&alloc, 10, "ten".to_string())?;
+        btree.insert_in(&alloc, 3, "three".to_string())?;
+        btree.insert_in(&alloc, 7, "seven".to_string())?;
+
+        assert_eq!(btree.first(), Some(&1));
+        assert_eq!(btree.last(), Some(&10));
+        assert_eq!(btree.first_key_value(), Some((&1, &"one".to_string())));
+        assert_eq!(btree.last_key_value(), Some((&10, &"ten".to_string())));
+
+        // Test with entry API
+        let first_entry = btree.first_entry_in(&alloc).unwrap();
+        assert_eq!(first_entry.key(), &1);
+        assert_eq!(first_entry.get(), &"one".to_string());
+        drop(first_entry);
+
+        let last_entry = btree.last_entry_in(&alloc).unwrap();
+        assert_eq!(last_entry.key(), &10);
+        assert_eq!(last_entry.get(), &"ten".to_string());
+        drop(last_entry);
+
+        btree.drop_in(&alloc);
+        core::mem::forget(btree);
+    }
+
+    assert_eq!(alloc.net_allocations(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn test_wrapper_first_and_last() -> Result<(), Box<dyn Error>> {
+    let mut btree = CompressedBTreeMap::<u32, String>::new();
+
+    // Empty tree
+    assert_eq!(btree.first(), None);
+    assert_eq!(btree.last(), None);
+    assert_eq!(btree.first_key_value(), None);
+    assert_eq!(btree.last_key_value(), None);
+    assert!(btree.first_entry().is_none());
+    assert!(btree.last_entry().is_none());
+
+    // Single element
+    btree.insert(5, "five".to_string())?;
+    assert_eq!(btree.first(), Some(&5));
+    assert_eq!(btree.last(), Some(&5));
+    assert_eq!(btree.first_key_value(), Some((&5, &"five".to_string())));
+    assert_eq!(btree.last_key_value(), Some((&5, &"five".to_string())));
+
+    // Multiple elements
+    btree.insert(1, "one".to_string())?;
+    btree.insert(10, "ten".to_string())?;
+    btree.insert(3, "three".to_string())?;
+    btree.insert(7, "seven".to_string())?;
+
+    assert_eq!(btree.first(), Some(&1));
+    assert_eq!(btree.last(), Some(&10));
+    assert_eq!(btree.first_key_value(), Some((&1, &"one".to_string())));
+    assert_eq!(btree.last_key_value(), Some((&10, &"ten".to_string())));
+
+    // Test with entry API
+    let first_entry = btree.first_entry().unwrap();
+    assert_eq!(first_entry.key(), &1);
+    assert_eq!(first_entry.get(), &"one".to_string());
+    drop(first_entry);
+
+    let last_entry = btree.last_entry().unwrap();
+    assert_eq!(last_entry.key(), &10);
+    assert_eq!(last_entry.get(), &"ten".to_string());
+    drop(last_entry);
+
+    Ok(())
+}

@@ -332,6 +332,50 @@ where
             root.first_entry_in(vec![]);
         Some(inner_entry.into_key_value())
     }
+
+    /// # Safety
+    ///
+    /// `alloc` MUST be the allocator used to allocate this object.
+    pub unsafe fn last_entry_in<'a, 's, A: Allocator>(
+        &'s mut self,
+        alloc: &'a A,
+    ) -> Option<OccupiedEntry<'a, 's, A, K, V, B>> {
+        if self.n == 0 {
+            return None;
+        }
+
+        let map = NonNull::new(self)?;
+        let root = self.root_mut_node_ref();
+        let inner_entry: OccupiedNodeEntry<'s, K, V, B, MutNodeRef<'s, K, V, B>> =
+            root.last_entry_in(vec![]);
+        // SAFETY: Requirements match function requirements
+        unsafe { Some(OccupiedEntry::new(alloc, inner_entry, map)) }
+    }
+
+    /// Returns a reference to the last key-value pair in the map.
+    /// The key in this pair is the maximum key in the map.
+    pub fn last_key_value<'s>(&'s self) -> Option<(&'s K, &'s V)> {
+        if self.n == 0 {
+            return None;
+        }
+
+        let root = self.root_node_ref();
+        let inner_entry: OccupiedNodeEntry<'s, K, V, B, NodeRef<'s, K, V, B>> =
+            root.last_entry_in(vec![]);
+        Some(inner_entry.into_key_value())
+    }
+
+    /// Returns a reference to the first key in the map.
+    /// This is the minimum key in the map.
+    pub fn first(&self) -> Option<&K> {
+        self.first_key_value().map(|(k, _)| k)
+    }
+
+    /// Returns a reference to the last key in the map.
+    /// This is the maximum key in the map.
+    pub fn last(&self) -> Option<&K> {
+        self.last_key_value().map(|(k, _)| k)
+    }
 }
 
 // impl<K: core::cmp::PartialOrd + Debug, V: Debug, B: ArrayLength> AllocatedBTreeMap<K, V, B>

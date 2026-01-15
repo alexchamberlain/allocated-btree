@@ -200,6 +200,27 @@ where
         self.raw.first_key_value()
     }
 
+    /// Gets the last entry in the map for in-place manipulation.
+    pub fn last_entry(&mut self) -> Option<OccupiedEntry<'_, '_, A, K, V, B>> {
+        // SAFETY: `self.alloc` was used to allocate `self.raw`
+        unsafe { self.raw.last_entry_in(&self.alloc) }
+    }
+
+    /// Returns the last key-value pair in the map.
+    pub fn last_key_value(&self) -> Option<(&K, &V)> {
+        self.raw.last_key_value()
+    }
+
+    /// Returns the first key in the map.
+    pub fn first(&self) -> Option<&K> {
+        self.raw.first()
+    }
+
+    /// Returns the last key in the map.
+    pub fn last(&self) -> Option<&K> {
+        self.raw.last()
+    }
+
     /// Gets an iterator over the entries of the map, sorted by key.
     pub fn iter(&self) -> Iter<'_, K, V, B> {
         self.raw.iter()

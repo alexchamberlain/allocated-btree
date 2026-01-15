@@ -258,6 +258,26 @@ where
         }
     }
 
+    fn last_entry_in(
+        mut self,
+        mut parents: Vec<(ChildPtr, usize)>,
+    ) -> OccupiedNodeEntry<'n, K, V, B, Self>
+    where
+        Self: Sized,
+    {
+        match self.as_type() {
+            NodeRefType::Interior => {
+                let n = self.n_keys();
+                parents.push((self.as_ptr(), n));
+                self.into_child_at(n).unwrap().last_entry_in(parents)
+            }
+            NodeRefType::Leaf => {
+                let n = self.n_keys();
+                OccupiedNodeEntry::new(parents, self, n - 1)
+            }
+        }
+    }
+
     fn ref_entry<'s, Q>(
         mut self,
         key: &'s Q,

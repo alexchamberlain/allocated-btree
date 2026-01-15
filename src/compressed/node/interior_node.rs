@@ -339,9 +339,9 @@ where
                     i,
                 ))
             }
-            // SAFETY: Requires child is a valid node reference with correct lifetime and parents list
             Some(child) => {
                 parents.push((ChildPtr::from_interior_node(self.into()), i));
+                // SAFETY: Requires child is a valid node reference with correct lifetime and parents list
                 unsafe { child.entry_in(key, parents) }
             }
         }
