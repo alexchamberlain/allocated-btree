@@ -301,7 +301,9 @@ where
         match self.child_at(i) {
             None => {
                 // Child doesn't exist - create vacant entry at this node
-                NodeEntry::Vacant(VacantNodeEntry::<K, &Q, V, B, Self>::new(key, parents, self, i))
+                NodeEntry::Vacant(VacantNodeEntry::<K, &Q, V, B, Self>::new(
+                    key, parents, self, i,
+                ))
             }
             Some(_) => {
                 // Child exists - descend into it

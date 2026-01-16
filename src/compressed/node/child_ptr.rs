@@ -130,7 +130,12 @@ impl ChildPtr {
     /// 1. The `ChildPtr` points to a valid node that has not been deallocated
     /// 2. The node lives at least as long as the specified lifetime `'a`
     /// 3. No mutable references to the same node exist during the lifetime `'a`
-    pub unsafe fn as_node_ref_with_lifetime<'a, K: core::cmp::PartialOrd + core::fmt::Debug, V, B: ArrayLength>(
+    pub unsafe fn as_node_ref_with_lifetime<
+        'a,
+        K: core::cmp::PartialOrd + core::fmt::Debug,
+        V,
+        B: ArrayLength,
+    >(
         &self,
     ) -> NodeRef<'a, K, V, B>
     where
@@ -161,7 +166,12 @@ impl ChildPtr {
     /// 2. The node lives at least as long as the specified lifetime `'a`
     /// 3. The index `i` is valid for the node (i < n_keys)
     /// 4. No mutable references to the same node exist during the lifetime `'a`
-    pub unsafe fn get_key_at<'a, K: core::cmp::PartialOrd + core::fmt::Debug + 'a, V: 'a, B: ArrayLength>(
+    pub unsafe fn get_key_at<
+        'a,
+        K: core::cmp::PartialOrd + core::fmt::Debug + 'a,
+        V: 'a,
+        B: ArrayLength,
+    >(
         &self,
         i: usize,
     ) -> &'a K
@@ -193,7 +203,12 @@ impl ChildPtr {
     /// 2. The node lives at least as long as the specified lifetime `'a`
     /// 3. The index `i` is valid for the node (i < n_keys)
     /// 4. No mutable references to the same node exist during the lifetime `'a`
-    pub unsafe fn get_value_at<'a, K: core::cmp::PartialOrd + core::fmt::Debug + 'a, V: 'a, B: ArrayLength>(
+    pub unsafe fn get_value_at<
+        'a,
+        K: core::cmp::PartialOrd + core::fmt::Debug + 'a,
+        V: 'a,
+        B: ArrayLength,
+    >(
         &self,
         i: usize,
     ) -> &'a V

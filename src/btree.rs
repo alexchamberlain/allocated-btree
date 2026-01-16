@@ -466,17 +466,16 @@ where
     /// }
     /// # Ok::<(), allocated::AllocErrorWithLayout>(())
     /// ```
-    pub unsafe fn remove_entry_in<A: Allocator, Q>(
-        &mut self,
-        alloc: &A,
-        key: &Q,
-    ) -> Option<(K, V)>
+    pub unsafe fn remove_entry_in<A: Allocator, Q>(&mut self, alloc: &A, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
         Q: PartialOrd + core::fmt::Debug + ?Sized,
     {
         // SAFETY: Caller guarantees `alloc` is the allocator used for this tree
-        unsafe { self.entry_ref_in(alloc, key).map(|entry| entry.remove_entry()) }
+        unsafe {
+            self.entry_ref_in(alloc, key)
+                .map(|entry| entry.remove_entry())
+        }
     }
 }
 

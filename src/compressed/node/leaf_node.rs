@@ -281,7 +281,11 @@ where
         let (i, match_) = self.find(&key);
 
         if match_ {
-            return NodeEntry::Occupied(OccupiedNodeEntry::new(ancestors, MutNodeRef::Leaf(self), i));
+            return NodeEntry::Occupied(OccupiedNodeEntry::new(
+                ancestors,
+                MutNodeRef::Leaf(self),
+                i,
+            ));
         }
 
         NodeEntry::Vacant(VacantNodeEntry::<K, K, V, B, MutNodeRef<K, V, B>>::new(
